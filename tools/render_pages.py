@@ -23,6 +23,7 @@ def load_font(name, size):
 
 font_cjk = load_font("msyh.ttc", 12)
 font_small = load_font("arial.ttf", 8)
+font_mono = load_font("consola.ttf", 8)
 font_mid = load_font("arialbd.ttf", 10)
 font_big = load_font("arialbd.ttf", 14)
 
@@ -138,16 +139,16 @@ for i, v in enumerate(samples):
     d.ellipse([px(x - 1), px(y - 1), px(x + 1), px(y + 1)], fill=BLACK)
     prev = (x, y)
 
-stats1 = "min1200 avg2264"
-stats2 = "max3000 fail2"
-sw1 = d.textlength(stats1, font=font_small) / SCALE
-d.text((px(W - 10 - sw1), px(6)), stats1, font=font_small, fill=BLACK)
-sw2 = d.textlength(stats2, font=font_small) / SCALE
-d.text((px(W - 10 - sw2), px(16)), stats2, font=font_small, fill=BLACK)
+stats1 = "min 1200 avg 2264"
+stats2 = "max 3000 fail   2"
+sw = max(d.textlength(stats1, font=font_mono),
+         d.textlength(stats2, font=font_mono)) / SCALE
+d.text((px(W - 10 - sw), px(6)), stats1, font=font_mono, fill=BLACK)
+d.text((px(W - 10 - sw), px(16)), stats2, font=font_mono, fill=BLACK)
 
-d.text((px(x0), px(H - 13)), "13:00", font=font_small, fill=BLACK)
-tw = d.textlength("16:00", font=font_small) / SCALE
-d.text((px(x1 - tw), px(H - 13)), "16:00", font=font_small, fill=BLACK)
+d.text((px(x0), px(H - 13)), "12 2450ms", font=font_mono, fill=BLACK)
+tw = d.textlength("16 2800ms", font=font_mono) / SCALE
+d.text((px(x1 - tw), px(H - 13)), "16 2800ms", font=font_mono, fill=BLACK)
 img.save(os.path.join(out_dir, "preview-latency.png"))
 
 print("已生成: docs/preview-weather.png, docs/preview-latency.png")

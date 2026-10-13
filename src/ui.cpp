@@ -397,28 +397,29 @@ void uiDrawLatency(const AppConfig& cfg, uint8_t index,
         }
     }
 
-    // 右上角统计：分两行显示，避免与标题"延迟"重叠
+    // 右上角统计：等宽字体两行，min/avg 与 max/fail 列对齐
     char stats1[32], stats2[32];
     if (vcnt > 0) {
-        snprintf(stats1, sizeof(stats1), "min%u avg%u",
+        snprintf(stats1, sizeof(stats1), "min %4u avg %4u",
                  (unsigned)vmin, (unsigned)(vsum / vcnt));
-        snprintf(stats2, sizeof(stats2), "max%u fail%u",
+        snprintf(stats2, sizeof(stats2), "max %4u fail %3u",
                  (unsigned)vmax, (unsigned)fails);
     } else {
         snprintf(stats1, sizeof(stats1), "no data");
         stats2[0] = '\0';
     }
-    u8g2.setFont(u8g2_font_helvB08_tf);
+    u8g2.setFont(u8g2_font_5x8_tf);
     int16_t wS1 = u8g2.getUTF8Width(stats1);
-    u8g2.setCursor(SCREEN_W - 10 - wS1, 14);
+    int16_t wS2 = (stats2[0] != '\0') ? u8g2.getUTF8Width(stats2) : 0;
+    int16_t xStats = SCREEN_W - 10 - (wS1 > wS2 ? wS1 : wS2);
+    u8g2.setCursor(xStats, 14);
     u8g2.print(stats1);
     if (stats2[0] != '\0') {
-        int16_t wS2 = u8g2.getUTF8Width(stats2);
-        u8g2.setCursor(SCREEN_W - 10 - wS2, 24);
+        u8g2.setCursor(xStats, 24);
         u8g2.print(stats2);
     }
 
-    // 底端时间轴标注：只显示整点（小时）
+    // 底端时间轴：只显示首尾两个整点时刻，并标注该时刻的延迟 ms
     if (count > 0) {
         time_t nowT = time(nullptr);
         struct tm tmNow;
@@ -428,15 +429,28 @@ void uiDrawLatency(const AppConfig& cfg, uint8_t index,
         struct tm tmStart;
         localtime_r(&startT, &tmStart);
 
-        char tL[8], tR[8];
-        snprintf(tL, sizeof(tL), "%02d:00", tmStart.tm_hour);
-        snprintf(tR, sizeof(tR), "%02d:00", tmNow.tm_hour);
+        char msL[10], msR[10];
+        if (samples[0] == 0xFFFF) {
+            snprintf(msL, sizeof(msL), "--ms");
+        } else {
+            snprintf(msL, sizeof(msL), "%ums", (unsigned)samples[0]);
+        }
+        if (samples[count - 1] == 0xFFFF) {
+            snprintf(msR, sizeof(msR), "--ms");
+        } else {
+            snprintf(msR, sizeof(msR), "%ums", (unsigned)samples[count - 1]);
+        }
 
+        char labelL[24], labelR[24];
+        snprintf(labelL, sizeof(labelL), "%d %s", (int)tmStart.tm_hour, msL);
+        snprintf(labelR, sizeof(labelR), "%d %s", (int)tmNow.tm_hour, msR);
+
+        u8g2.setFont(u8g2_font_5x8_tf);
         u8g2.setCursor(x0, SCREEN_H - 6);
-        u8g2.print(tL);
-        int16_t wR = u8g2.getUTF8Width(tR);
+        u8g2.print(labelL);
+        int16_t wR = u8g2.getUTF8Width(labelR);
         u8g2.setCursor(x1 - wR, SCREEN_H - 6);
-        u8g2.print(tR);
+        u8g2.print(labelR);
     }
 
     epd.display(!fullRefresh);
