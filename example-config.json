@@ -11,7 +11,7 @@
   "full_refresh_minutes": 60,
   "weather_refresh_minutes": 10,
   "checks": [
-    { "name": "example.com", "url": "https://example.com/" },
-    { "name": "example.org", "url": "https://example.org/" }
+    { "name": "站点一备注", "url": "https://example.com/" },
+    { "name": "站点二备注", "url": "https://example.org/" }
   ]
 }

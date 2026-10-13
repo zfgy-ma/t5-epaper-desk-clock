@@ -203,8 +203,8 @@ void uiDraw(const AppConfig& cfg, const struct tm& now,
     for (uint8_t i = 0; i < 2; i++) {
         int16_t x0 = 10 + i * 122;
 
-        // 域名标题
-        u8g2.setFont(u8g2_font_helvB08_tf);
+        // 站点备注（支持中文，来自 config.json 的 name 字段）
+        u8g2.setFont(u8g2_font_wqy12_t_gb2312);
         u8g2.setCursor(x0, 88);
         u8g2.print(i < cfg.checkCount ? cfg.checks[i].name.c_str() : "");
 
@@ -213,7 +213,7 @@ void uiDraw(const AppConfig& cfg, const struct tm& now,
 
         // 百分比（右对齐）
         if (percent[i] == 255) {
-            snprintf(buf, sizeof(buf), "--");
+            snprintf(buf, sizeof(buf), "--%%");   // 无数据时显示 --%
         } else {
             snprintf(buf, sizeof(buf), "%u%%", (unsigned)percent[i]);
         }

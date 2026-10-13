@@ -81,11 +81,11 @@ d.ellipse([px(218 + temp_w + 3), px(29), px(218 + temp_w + 5), px(31)],
 for x in range(10, W - 12, 3):
     d.rectangle([px(x), px(70), px(x + 1), px(70)], fill=BLACK)
 
-# 两列可用性
-columns = [("api.example.com", 98), ("example.com", 98)]
+# 两列可用性（config.json 的 name 备注，支持中文）
+columns = [("示例站点一", 98), ("示例站点二", 98)]
 for i, (name, percent) in enumerate(columns):
     x0 = 10 + i * 122
-    d.text((px(x0), px(80)), name, font=font_small, fill=BLACK)
+    d.text((px(x0), px(76)), name, font=font_cjk, fill=BLACK)
     draw_bar(x0, 94, 82, 16, percent)
     text = f"{percent}%"
     tw = d.textlength(text, font=font_num) / SCALE
