@@ -192,6 +192,8 @@ bool weatherFetch(const AppConfig& cfg, WeatherInfo& out, ForecastInfo& fc)
             tmv.tm_hour = 12;   // 用中午避免时区边界问题
             if (mktime(&tmv) > 0) {
                 fc.days[i].wday = (int8_t)tmv.tm_wday;
+                Serial.printf("[天气] 第%u天 %s => 星期%d\n",
+                              (unsigned)i, dateStr, (int)tmv.tm_wday);
             }
         }
     }

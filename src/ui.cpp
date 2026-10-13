@@ -298,6 +298,8 @@ void uiDrawForecast(const AppConfig& cfg, const ForecastInfo& fc,
     for (uint8_t i = 0; i < 4; i++) {
         int16_t cx = 2 + i * colW + colW / 2;
 
+        // 每列都要重设中文字体（温度绘制会切换成拉丁字体，必须还原）
+        u8g2.setFont(u8g2_font_wqy12_t_gb2312);
         int16_t w = u8g2.getUTF8Width(labels[i]);
         u8g2.setCursor(cx - w / 2, 22);
         u8g2.print(labels[i]);
@@ -395,21 +397,28 @@ void uiDrawLatency(const AppConfig& cfg, uint8_t index,
         }
     }
 
-    // 右上角统计（min / avg / max / fail）
-    char stats[56];
+    // 右上角统计：分两行显示，避免与标题"延迟"重叠
+    char stats1[32], stats2[32];
     if (vcnt > 0) {
-        snprintf(stats, sizeof(stats), "min%u avg%u max%u fail%u",
-                 (unsigned)vmin, (unsigned)(vsum / vcnt), (unsigned)vmax,
-                 (unsigned)fails);
+        snprintf(stats1, sizeof(stats1), "min%u avg%u",
+                 (unsigned)vmin, (unsigned)(vsum / vcnt));
+        snprintf(stats2, sizeof(stats2), "max%u fail%u",
+                 (unsigned)vmax, (unsigned)fails);
     } else {
-        snprintf(stats, sizeof(stats), "no data");
+        snprintf(stats1, sizeof(stats1), "no data");
+        stats2[0] = '\0';
     }
     u8g2.setFont(u8g2_font_helvB08_tf);
-    int16_t wStats = u8g2.getUTF8Width(stats);
-    u8g2.setCursor(SCREEN_W - 10 - wStats, 18);
-    u8g2.print(stats);
+    int16_t wS1 = u8g2.getUTF8Width(stats1);
+    u8g2.setCursor(SCREEN_W - 10 - wS1, 14);
+    u8g2.print(stats1);
+    if (stats2[0] != '\0') {
+        int16_t wS2 = u8g2.getUTF8Width(stats2);
+        u8g2.setCursor(SCREEN_W - 10 - wS2, 24);
+        u8g2.print(stats2);
+    }
 
-    // 底端时间轴标注：左端与右端对应的时刻
+    // 底端时间轴标注：只显示整点（小时）
     if (count > 0) {
         time_t nowT = time(nullptr);
         struct tm tmNow;
@@ -420,8 +429,8 @@ void uiDrawLatency(const AppConfig& cfg, uint8_t index,
         localtime_r(&startT, &tmStart);
 
         char tL[8], tR[8];
-        snprintf(tL, sizeof(tL), "%02d:%02d", tmStart.tm_hour, tmStart.tm_min);
-        snprintf(tR, sizeof(tR), "%02d:%02d", tmNow.tm_hour, tmNow.tm_min);
+        snprintf(tL, sizeof(tL), "%02d:00", tmStart.tm_hour);
+        snprintf(tR, sizeof(tR), "%02d:00", tmNow.tm_hour);
 
         u8g2.setCursor(x0, SCREEN_H - 6);
         u8g2.print(tL);

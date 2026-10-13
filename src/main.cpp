@@ -181,6 +181,15 @@ void setup()
         }
 
         for (int i = 0; i < 50 && !timeIsValid(); i++) delay(200);
+
+        // 调试：打印当前本地时间与星期，便于核对天气页星期计算
+        time_t tt = time(nullptr);
+        struct tm lt;
+        localtime_r(&tt, &lt);
+        Serial.printf("[时间] 本地 %04d-%02d-%02d %02d:%02d 星期%d\n",
+                      lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday,
+                      lt.tm_hour, lt.tm_min, (int)lt.tm_wday);
+
         if (weatherFetch(g_cfg, g_weather, g_forecast)) g_lastWeatherMs = millis();
     }
     if (WiFi.status() == WL_CONNECTED) {

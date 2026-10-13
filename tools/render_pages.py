@@ -138,13 +138,16 @@ for i, v in enumerate(samples):
     d.ellipse([px(x - 1), px(y - 1), px(x + 1), px(y + 1)], fill=BLACK)
     prev = (x, y)
 
-stats = "min1200 avg2264 max3000 fail2"
-sw = d.textlength(stats, font=font_small) / SCALE
-d.text((px(W - 10 - sw), px(8)), stats, font=font_small, fill=BLACK)
+stats1 = "min1200 avg2264"
+stats2 = "max3000 fail2"
+sw1 = d.textlength(stats1, font=font_small) / SCALE
+d.text((px(W - 10 - sw1), px(6)), stats1, font=font_small, fill=BLACK)
+sw2 = d.textlength(stats2, font=font_small) / SCALE
+d.text((px(W - 10 - sw2), px(16)), stats2, font=font_small, fill=BLACK)
 
-d.text((px(x0), px(H - 13)), "13:15", font=font_small, fill=BLACK)
-tw = d.textlength("15:30", font=font_small) / SCALE
-d.text((px(x1 - tw), px(H - 13)), "15:30", font=font_small, fill=BLACK)
+d.text((px(x0), px(H - 13)), "13:00", font=font_small, fill=BLACK)
+tw = d.textlength("16:00", font=font_small) / SCALE
+d.text((px(x1 - tw), px(H - 13)), "16:00", font=font_small, fill=BLACK)
 img.save(os.path.join(out_dir, "preview-latency.png"))
 
 print("已生成: docs/preview-weather.png, docs/preview-latency.png")
