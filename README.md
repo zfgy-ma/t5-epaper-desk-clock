@@ -88,6 +88,32 @@ pio run -t upload
 | [Adafruit GFX](https://github.com/adafruit/Adafruit-GFX-Library) | 图形绘制基础库（GxEPD2 依赖） | BSD |
 | [ESP32 Arduino Core](https://github.com/espressif/arduino-esp32) | WiFi / HTTPClient / NTP | LGPL-2.1 |
 
+## 常见问题
+
+**屏幕一直显示"等待校时"、进度条为 `--%`？**
+
+说明设备拿到的时间无效或未联网。检查 `config.json` 里的
+`wifi_ssid` / `wifi_password` 是否正确，串口日志会给出连接结果。
+
+**屏幕偶尔有残影？**
+
+正常现象：快刷会累积轻微残影，程序会按 `full_refresh_minutes`
+定期整屏全刷（默认 60 分钟）清除。
+
+**刷新时屏幕会闪一下？**
+
+这是墨水屏整屏全刷的正常表现（默认每小时一次），用于保持显示质量。
+
+**想调整夜间休眠时间？**
+
+修改 `config.json` 的 `sleep_start_hour` / `sleep_end_hour`，
+支持跨零点时段（例如 23 点至次日 7 点）。
+
+**面板是黑白的，为什么设计图是四灰度？**
+
+本项目使用的 122×250 面板为黑白（1 位/像素）；需要灰色观感时可使用
+点阵抖动（dither）模拟，界面中的点状分隔线即为此类处理。
+
 ## 许可
 
 本项目基于 **GPL-3.0** 许可发布（依赖 GPL-3.0 的 GxEPD2），详见 `LICENSE`。
