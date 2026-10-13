@@ -78,6 +78,8 @@ pio run -t upload
 - **调试**：串口发送字符 `n` 也可切换页面（无需按键，便于开发验证）
 
 - **时间**：联网后通过 NTP 校时，之后由 ESP32 内部时钟计时
+- **定位**：`location`（如"杭州"）经 Open-Meteo 地理编码接口转换为经纬度，
+  结果缓存在 NVS 中供后续启动直接复用（失败时回退到 `latitude`/`longitude`）
 - **天气**：使用 Open-Meteo 免费接口（无需 API Key），按经纬度查询
 - **可用性检测**：按 `check_interval_minutes` 周期对每个 `url` 发起 HTTP(S) 请求
   - 能收到 HTTP 响应（含 4xx）视为"可达"；无响应或 5xx 视为异常
