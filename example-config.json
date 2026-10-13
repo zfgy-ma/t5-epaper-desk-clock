@@ -3,6 +3,7 @@
   "wifi_password": "你的 WiFi 密码",
   "ntp_server": "ntp.aliyun.com",
   "timezone_offset_hours": 8,
+  "location": "城市名称（如：杭州）",
   "latitude": 0.0,
   "longitude": 0.0,
   "sleep_start_hour": 0,
@@ -10,7 +11,7 @@
   "refresh_seconds": 60,
   "check_interval_minutes": 15,
   "stats_days": 3,
-  "full_refresh_minutes": 60,
+  "full_refresh_minutes": 10,
   "weather_refresh_minutes": 10,
   "checks": [
     { "name": "站点一备注", "url": "https://example.com/" },

@@ -42,13 +42,14 @@ pio run -t upload
 | `wifi_password` | WiFi 密码 | `"12345678"` |
 | `ntp_server` | NTP 校时服务器 | `"ntp.aliyun.com"` |
 | `timezone_offset_hours` | 时区（小时，东八区为 8） | `8` |
-| `latitude` / `longitude` | 地区经纬度（天气查询用） | `30.2741` / `120.1551` |
+| `location` | 地区名称（自动转换为经纬度，支持中文） | `"杭州"` |
+| `latitude` / `longitude` | 经纬度（可选，作为地区解析失败时的兜底） | `30.2741` / `120.1551` |
 | `sleep_start_hour` | 夜间休眠开始（小时） | `0` |
 | `sleep_end_hour` | 夜间休眠结束（小时） | `7` |
 | `refresh_seconds` | 屏幕刷新周期（秒） | `60` |
 | `check_interval_minutes` | 可用性检测间隔（分钟） | `15` |
 | `stats_days` | 可用率统计窗口（天） | `3` |
-| `full_refresh_minutes` | 全刷间隔（分钟，消除快刷残影） | `60` |
+| `full_refresh_minutes` | 全刷间隔（分钟，消除快刷残影） | `10` |
 | `weather_refresh_minutes` | 天气更新间隔（分钟） | `10` |
 | `checks` | 可用性检测目标列表（最多 2 个） | 见示例文件 |
 
@@ -97,7 +98,7 @@ pio run -t upload
 
 **刷新时屏幕会闪一下？**
 
-这是墨水屏整屏全刷的正常表现（默认每小时一次），用于保持显示质量。
+这是墨水屏整屏全刷的正常表现（默认每 10 分钟一次），用于保持显示质量。
 
 **想调整夜间休眠时间？**
 

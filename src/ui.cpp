@@ -139,7 +139,7 @@ static void drawDottedDivider(int16_t y)
 
 void uiDraw(const AppConfig& cfg, const struct tm& now,
             const WeatherInfo& weather, const uint8_t percent[2],
-            bool fullRefresh)
+            bool fullRefresh, bool night)
 {
     epd.fillScreen(GxEPD_WHITE);
 
@@ -150,29 +150,45 @@ void uiDraw(const AppConfig& cfg, const struct tm& now,
     char buf[40];
     bool timeOk = timeIsValid();
 
-    // ---- 时间（大号数字）----
-    if (timeOk) {
-        snprintf(buf, sizeof(buf), "%02d:%02d", now.tm_hour, now.tm_min);
-    } else {
-        snprintf(buf, sizeof(buf), "--:--");
-    }
-    epd.setFont(&FreeSansBold24pt7b);
-    epd.setTextColor(GxEPD_BLACK);
-    epd.setCursor(12, 46);
-    epd.print(buf);
+    if (night) {
+        // 夜间休眠画面：时间位置改为提示文字
+        u8g2.setFont(u8g2_font_wqy16_t_gb2312);
+        u8g2.setForegroundColor(GxEPD_BLACK);
+        const char *msg = "夜间休眠中";
+        int16_t w = u8g2.getUTF8Width(msg);
+        u8g2.setCursor((SCREEN_W - w) / 2, 42);
+        u8g2.print(msg);
 
-    // ---- 日期（中文小字）----
-    static const char* weekCn[] = { "日", "一", "二", "三", "四", "五", "六" };
-    if (timeOk) {
-        snprintf(buf, sizeof(buf), "%d月%d日 周%s",
-                 now.tm_mon + 1, now.tm_mday, weekCn[now.tm_wday]);
+        snprintf(buf, sizeof(buf), "将于 %d:00 自动唤醒", (int)cfg.sleepEndHour);
+        u8g2.setFont(u8g2_font_wqy12_t_gb2312);
+        w = u8g2.getUTF8Width(buf);
+        u8g2.setCursor((SCREEN_W - w) / 2, 64);
+        u8g2.print(buf);
     } else {
-        snprintf(buf, sizeof(buf), "等待校时");
+        // ---- 时间（大号数字）----
+        if (timeOk) {
+            snprintf(buf, sizeof(buf), "%02d:%02d", now.tm_hour, now.tm_min);
+        } else {
+            snprintf(buf, sizeof(buf), "--:--");
+        }
+        epd.setFont(&FreeSansBold24pt7b);
+        epd.setTextColor(GxEPD_BLACK);
+        epd.setCursor(12, 46);
+        epd.print(buf);
+
+        // ---- 日期（中文小字）----
+        static const char* weekCn[] = { "日", "一", "二", "三", "四", "五", "六" };
+        if (timeOk) {
+            snprintf(buf, sizeof(buf), "%d月%d日 周%s",
+                     now.tm_mon + 1, now.tm_mday, weekCn[now.tm_wday]);
+        } else {
+            snprintf(buf, sizeof(buf), "等待校时");
+        }
+        u8g2.setFont(u8g2_font_wqy12_t_gb2312);
+        u8g2.setForegroundColor(GxEPD_BLACK);
+        u8g2.setCursor(12, 64);
+        u8g2.print(buf);
     }
-    u8g2.setFont(u8g2_font_wqy12_t_gb2312);
-    u8g2.setForegroundColor(GxEPD_BLACK);
-    u8g2.setCursor(12, 64);
-    u8g2.print(buf);
 
     // ---- 天气（图标 + 中文描述 + 温度）----
     if (weather.valid) {
@@ -198,6 +214,14 @@ void uiDraw(const AppConfig& cfg, const struct tm& now,
         u8g2.setFont(u8g2_font_wqy12_t_gb2312);
         u8g2.setCursor(194, 40);
         u8g2.print("暂无天气");
+    }
+
+    // ---- 地区名称（显示在天气下方）----
+    if (cfg.location.length() > 0) {
+        u8g2.setFont(u8g2_font_wqy12_t_gb2312);
+        int16_t wLoc = u8g2.getUTF8Width(cfg.location.c_str());
+        u8g2.setCursor(198 - wLoc / 2, 60);
+        u8g2.print(cfg.location);
     }
 
     // ---- 分隔线 ----
@@ -228,4 +252,151 @@ void uiDraw(const AppConfig& cfg, const struct tm& now,
     }
 
     epd.display(!fullRefresh);   // fullRefresh=false 时走快刷（约 0.2 秒）
+}
+
+// 居中绘制温度数字（右上角带度数小圆圈）
+static void drawTempCentered(int16_t cx, int16_t baseline, int value,
+                             const uint8_t *font, int16_t dotRadius)
+{
+    char text[8];
+    snprintf(text, sizeof(text), "%d", value);
+    u8g2.setFont(font);
+    int16_t w = u8g2.getUTF8Width(text);
+    int16_t x = cx - w / 2;
+    u8g2.setCursor(x, baseline);
+    u8g2.print(text);
+    epd.drawCircle(x + w + 3, baseline - 10, dotRadius, GxEPD_BLACK);
+}
+
+void uiDrawForecast(const AppConfig& cfg, const ForecastInfo& fc,
+                    bool fullRefresh)
+{
+    epd.fillScreen(GxEPD_WHITE);
+    epd.drawRect(0, 0, SCREEN_W, SCREEN_H, GxEPD_BLACK);
+    epd.drawRect(1, 1, SCREEN_W - 2, SCREEN_H - 2, GxEPD_BLACK);
+
+    // 四列：昨天 / 今天 / 明天 / 后天（竖线分割）
+    static const char *labels[4] = { "昨天", "今天", "明天", "后天" };
+    const int16_t colW = (SCREEN_W - 4) / 4;
+
+    for (int i = 1; i < 4; i++) {
+        epd.drawFastVLine(2 + i * colW, 4, SCREEN_H - 8, GxEPD_BLACK);
+    }
+
+    u8g2.setForegroundColor(GxEPD_BLACK);
+    u8g2.setFont(u8g2_font_wqy12_t_gb2312);
+
+    for (uint8_t i = 0; i < 4; i++) {
+        int16_t cx = 2 + i * colW + colW / 2;
+
+        int16_t w = u8g2.getUTF8Width(labels[i]);
+        u8g2.setCursor(cx - w / 2, 22);
+        u8g2.print(labels[i]);
+
+        if (!fc.valid) continue;
+
+        drawWeatherIcon(fc.days[i].code, cx, 48);
+        drawTempCentered(cx, 92, (int)lroundf(fc.days[i].tMax),
+                         u8g2_font_helvB14_tf, 2);   // 最高温度
+        drawTempCentered(cx, 112, (int)lroundf(fc.days[i].tMin),
+                         u8g2_font_helvB10_tf, 1);   // 最低温度
+    }
+
+    if (!fc.valid) {
+        const char *msg = "暂无预报数据";
+        u8g2.setFont(u8g2_font_wqy12_t_gb2312);
+        int16_t w = u8g2.getUTF8Width(msg);
+        u8g2.setCursor((SCREEN_W - w) / 2, 76);
+        u8g2.print(msg);
+    }
+
+    epd.display(!fullRefresh);
+}
+
+void uiDrawLatency(const AppConfig& cfg, uint8_t index,
+                   const uint16_t *samples, uint16_t count,
+                   bool fullRefresh)
+{
+    epd.fillScreen(GxEPD_WHITE);
+    epd.drawRect(0, 0, SCREEN_W, SCREEN_H, GxEPD_BLACK);
+    epd.drawRect(1, 1, SCREEN_W - 2, SCREEN_H - 2, GxEPD_BLACK);
+    u8g2.setForegroundColor(GxEPD_BLACK);
+
+    // 标题
+    char title[40];
+    const char *name = (index < cfg.checkCount) ? cfg.checks[index].name.c_str()
+                                                : "站点";
+    snprintf(title, sizeof(title), "%s 延迟", name);
+    u8g2.setFont(u8g2_font_wqy12_t_gb2312);
+    u8g2.setCursor(10, 20);
+    u8g2.print(title);
+
+    // 统计有效样本
+    uint16_t vmin = 0xFFFF, vmax = 0, vcnt = 0, fails = 0;
+    uint32_t vsum = 0;
+    for (uint16_t i = 0; i < count; i++) {
+        if (samples[i] == 0xFFFF) { fails++; continue; }
+        if (samples[i] < vmin) vmin = samples[i];
+        if (samples[i] > vmax) vmax = samples[i];
+        vsum += samples[i];
+        vcnt++;
+    }
+
+    // 图表区域与坐标轴
+    const int16_t x0 = 12, x1 = SCREEN_W - 10, yTop = 30, yBot = 100;
+    epd.drawFastVLine(x0, yTop, yBot - yTop, GxEPD_BLACK);
+    epd.drawFastHLine(x0, yBot, x1 - x0, GxEPD_BLACK);
+
+    uint16_t yMax = vcnt ? vmax : 100;
+    if (yMax < 100) yMax = 100;
+    else if (yMax < 1000) yMax = (uint16_t)(((yMax + 99) / 100) * 100);
+    else yMax = (uint16_t)(((yMax + 499) / 500) * 500);
+
+    char label[16];
+    snprintf(label, sizeof(label), "%ums", (unsigned)yMax);
+    u8g2.setFont(u8g2_font_helvB08_tf);
+    u8g2.setCursor(x0 + 2, yTop + 8);
+    u8g2.print(label);
+
+    for (int i = 1; i <= 3; i++) {
+        int16_t y = yBot - (int16_t)((int32_t)(yBot - yTop) * i / 4);
+        for (int16_t x = x0 + 2; x < x1; x += 4) {
+            epd.drawPixel(x, y, GxEPD_BLACK);
+        }
+    }
+
+    // 折线（失败样本：顶部画叉并断开）
+    if (count > 0) {
+        int16_t step = (count > 1) ? (int16_t)((x1 - x0) / (count - 1)) : 0;
+        int16_t prevX = -1, prevY = -1;
+        for (uint16_t i = 0; i < count; i++) {
+            int16_t x = x0 + (int16_t)(i * step);
+            if (samples[i] == 0xFFFF) {
+                epd.drawLine(x - 2, yTop + 2, x + 2, yTop + 6, GxEPD_BLACK);
+                epd.drawLine(x + 2, yTop + 2, x - 2, yTop + 6, GxEPD_BLACK);
+                prevX = -1;
+                continue;
+            }
+            int16_t y = yBot - (int16_t)((int32_t)samples[i] * (yBot - yTop) / yMax);
+            if (y < yTop) y = yTop;
+            if (prevX >= 0) epd.drawLine(prevX, prevY, x, y, GxEPD_BLACK);
+            prevX = x;
+            prevY = y;
+        }
+    }
+
+    // 底部统计（纯 ASCII，使用小号字体）
+    char stats[56];
+    if (vcnt > 0) {
+        snprintf(stats, sizeof(stats), "min %u  avg %u  max %u ms  fail %u",
+                 (unsigned)vmin, (unsigned)(vsum / vcnt), (unsigned)vmax,
+                 (unsigned)fails);
+    } else {
+        snprintf(stats, sizeof(stats), "no latency data yet");
+    }
+    u8g2.setFont(u8g2_font_helvB08_tf);
+    u8g2.setCursor(10, SCREEN_H - 8);
+    u8g2.print(stats);
+
+    epd.display(!fullRefresh);
 }

@@ -19,11 +19,26 @@
 #include "net_tasks.h"
 #include "ui.h"
 
+// 用户按键：GPIO39（按下为低电平），用于切换页面
+#define BUTTON_PIN (39)
+
 static AppConfig   g_cfg;
 static WeatherInfo g_weather;
+static ForecastInfo g_forecast;
 static uint32_t    g_lastWeatherMs = 0;
 static uint32_t    g_lastFullMs    = 0;
 static uint32_t    g_lastCheckMs   = 0;
+static uint8_t     g_page          = 0;      // 当前页面：0=主页 1=天气 2/3=延迟图
+static uint8_t     g_btnLast       = HIGH;   // 按键上次电平
+
+// 检测按键是否被按下（上升沿去抖，返回 true 表示刚按下）
+static bool buttonPressed()
+{
+    uint8_t now = (uint8_t)digitalRead(BUTTON_PIN);
+    bool pressed = (g_btnLast == HIGH && now == LOW);
+    g_btnLast = now;
+    return pressed;
+}
 
 // 当前是否处于休眠时段（支持跨零点配置，如 23 点至 7 点）
 static bool isSleepTime(const struct tm& t)
@@ -50,6 +65,13 @@ static void sleepUntilMorning()
     if (sec <= 0) sec += 24 * 3600;
     if (sec <= 0 || sec > 24 * 3600) sec = 60;   // 异常保护：一分钟后再试
 
+    // 睡前画面：时间位置显示"夜间休眠中"（全刷后进入深度睡眠）
+    g_page = 0;
+    uint8_t pct[2] = { availabilityPercent(0), availabilityPercent(1) };
+    struct tm t2;
+    localtime_r(&now, &t2);
+    uiDraw(g_cfg, t2, g_weather, pct, true, true);
+
     Serial.printf("[休眠] 深度睡眠约 %.1f 小时后唤醒\n", sec / 3600.0);
     esp_sleep_enable_timer_wakeup((uint64_t)sec * 1000000ULL);
     esp_deep_sleep_start();
@@ -64,6 +86,7 @@ static void runChecks()
         uint32_t latency = 0;
         bool ok = urlCheck(g_cfg.checks[i].url, latency);
         availabilityRecord(i, ok);
+        latencyRecord(i, ok, latency);
         Serial.printf("[检测] %s = %s（%u ms）\n",
                       g_cfg.checks[i].name.c_str(), ok ? "可用" : "不可用",
                       (unsigned)latency);
@@ -75,6 +98,28 @@ static void localTime(struct tm& t)
 {
     time_t now = time(nullptr);
     localtime_r(&now, &t);
+}
+
+// 绘制当前页（full=true 全刷，false 快刷）
+static void drawPage(bool full)
+{
+    uint8_t pct[2] = { availabilityPercent(0), availabilityPercent(1) };
+
+    if (g_page == 1) {
+        uiDrawForecast(g_cfg, g_forecast, full);
+        return;
+    }
+    if (g_page == 2 || g_page == 3) {
+        uint8_t idx = (uint8_t)(g_page - 2);
+        static uint16_t samples[48];
+        uint16_t n = latencyHistory(idx, samples, 48);
+        uiDrawLatency(g_cfg, idx, samples, n, full);
+        return;
+    }
+
+    struct tm t;
+    localTime(t);
+    uiDraw(g_cfg, t, g_weather, pct, full);
 }
 
 void setup()
@@ -98,10 +143,24 @@ void setup()
 
     uiInit();
 
+    // 按键初始化（GPIO39，按下为低电平）
+    pinMode(BUTTON_PIN, INPUT);
+    g_btnLast = (uint8_t)digitalRead(BUTTON_PIN);
+
     if (wifiEnsure(g_cfg, 15000)) {
         timeStartSync(g_cfg);
+
+        // 地区名称 → 经纬度（带 NVS 缓存，失败时回退到 config 坐标）
+        if (g_cfg.location.length() > 0) {
+            float lat = g_cfg.latitude, lon = g_cfg.longitude;
+            if (geocodeLocation(g_cfg, lat, lon)) {
+                g_cfg.latitude  = lat;
+                g_cfg.longitude = lon;
+            }
+        }
+
         for (int i = 0; i < 50 && !timeIsValid(); i++) delay(200);
-        if (weatherFetch(g_cfg, g_weather)) g_lastWeatherMs = millis();
+        if (weatherFetch(g_cfg, g_weather, g_forecast)) g_lastWeatherMs = millis();
     }
     if (WiFi.status() == WL_CONNECTED) {
         runChecks();
@@ -112,19 +171,28 @@ void setup()
     localTime(t);
     if (isSleepTime(t)) sleepUntilMorning();
 
-    uint8_t pct[2] = { availabilityPercent(0), availabilityPercent(1) };
-    uiDraw(g_cfg, t, g_weather, pct, true);   // 启动时全刷
+    drawPage(true);   // 启动时全刷
     g_lastFullMs = millis();
 }
 
 void loop()
 {
-    // 等待到下一个刷新周期边界（对齐整分钟）
+    // 等待到下一个刷新周期边界（对齐整分钟）；期间轮询按键翻页
     uint32_t period = g_cfg.refreshSeconds ? g_cfg.refreshSeconds : 60;
     time_t now = time(nullptr);
     uint32_t wait = period - (uint32_t)(now % (time_t)period);
     if (wait < 1 || wait > period) wait = period;
-    delay(wait * 1000UL);
+
+    uint32_t target = wait * 1000UL;
+    for (uint32_t waited = 0; waited < target; waited += 50) {
+        if (buttonPressed()) {
+            g_page = (uint8_t)((g_page + 1) % 4);
+            Serial.printf("[按键] 切换到第 %u 页\n", (unsigned)g_page);
+            drawPage(true);             // 翻页用全刷，避免残影
+            g_lastFullMs = millis();
+        }
+        delay(50);
+    }
 
     struct tm t;
     localTime(t);
@@ -141,7 +209,7 @@ void loop()
         (g_lastWeatherMs == 0 ||
          millis() - g_lastWeatherMs >
              (uint32_t)g_cfg.weatherRefreshMinutes * 60000UL)) {
-        if (weatherFetch(g_cfg, g_weather)) g_lastWeatherMs = millis();
+        if (weatherFetch(g_cfg, g_weather, g_forecast)) g_lastWeatherMs = millis();
     }
 
     // 可用性检测：按检测间隔执行（默认 15 分钟一次）
@@ -157,7 +225,6 @@ void loop()
     bool full = (millis() - g_lastFullMs) >
                 (uint32_t)g_cfg.fullRefreshMinutes * 60000UL;
 
-    uint8_t pct[2] = { availabilityPercent(0), availabilityPercent(1) };
-    uiDraw(g_cfg, t, g_weather, pct, full);
+    drawPage(full);
     if (full) g_lastFullMs = millis();
 }

@@ -18,6 +18,7 @@ struct AppConfig {
     String   wifiPassword;
     String   ntpServer;
     int8_t   timezoneOffsetHours;    // 时区偏移（小时）
+    String   location;               // 地区名称（如"杭州"，自动转换为经纬度）
     float    latitude;               // 纬度（天气接口用）
     float    longitude;              // 经度（天气接口用）
     uint8_t  sleepStartHour;         // 休眠开始（小时）

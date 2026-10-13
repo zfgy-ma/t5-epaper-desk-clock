@@ -21,6 +21,7 @@ bool loadAppConfig(AppConfig& cfg)
     cfg.wifiPassword   = doc["wifi_password"] | "";
     cfg.ntpServer      = doc["ntp_server"] | "ntp.aliyun.com";
     cfg.timezoneOffsetHours = doc["timezone_offset_hours"] | 8;
+    cfg.location       = doc["location"] | "";
     cfg.latitude       = doc["latitude"] | 0.0f;
     cfg.longitude      = doc["longitude"] | 0.0f;
     cfg.sleepStartHour = doc["sleep_start_hour"] | 0;
@@ -28,7 +29,7 @@ bool loadAppConfig(AppConfig& cfg)
     cfg.refreshSeconds = doc["refresh_seconds"] | 60;
     cfg.checkIntervalMinutes  = doc["check_interval_minutes"] | 15;
     cfg.statsDays             = doc["stats_days"] | 3;
-    cfg.fullRefreshMinutes    = doc["full_refresh_minutes"] | 60;
+    cfg.fullRefreshMinutes    = doc["full_refresh_minutes"] | 10;
     cfg.weatherRefreshMinutes = doc["weather_refresh_minutes"] | 10;
 
     cfg.checkCount = 0;
