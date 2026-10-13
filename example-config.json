@@ -1,0 +1,17 @@
+{
+  "wifi_ssid": "你的 WiFi 名称",
+  "wifi_password": "你的 WiFi 密码",
+  "ntp_server": "ntp.aliyun.com",
+  "timezone_offset_hours": 8,
+  "latitude": 0.0,
+  "longitude": 0.0,
+  "sleep_start_hour": 0,
+  "sleep_end_hour": 7,
+  "refresh_seconds": 60,
+  "full_refresh_minutes": 60,
+  "weather_refresh_minutes": 10,
+  "checks": [
+    { "name": "example.com", "url": "https://example.com/" },
+    { "name": "example.org", "url": "https://example.org/" }
+  ]
+}

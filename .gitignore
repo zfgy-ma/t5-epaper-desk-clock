@@ -1,0 +1,9 @@
+# 敏感配置（WiFi、地区、检测链接等），严禁提交
+config.json
+
+# 编译输出与本地环境
+.pio/
+.vscode/
+.idea/
+__pycache__/
+*.pyc
