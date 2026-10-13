@@ -26,6 +26,8 @@ bool loadAppConfig(AppConfig& cfg)
     cfg.sleepStartHour = doc["sleep_start_hour"] | 0;
     cfg.sleepEndHour   = doc["sleep_end_hour"] | 7;
     cfg.refreshSeconds = doc["refresh_seconds"] | 60;
+    cfg.checkIntervalMinutes  = doc["check_interval_minutes"] | 15;
+    cfg.statsDays             = doc["stats_days"] | 3;
     cfg.fullRefreshMinutes    = doc["full_refresh_minutes"] | 60;
     cfg.weatherRefreshMinutes = doc["weather_refresh_minutes"] | 10;
 

@@ -23,6 +23,7 @@ static AppConfig   g_cfg;
 static WeatherInfo g_weather;
 static uint32_t    g_lastWeatherMs = 0;
 static uint32_t    g_lastFullMs    = 0;
+static uint32_t    g_lastCheckMs   = 0;
 
 // 当前是否处于休眠时段（支持跨零点配置，如 23 点至 7 点）
 static bool isSleepTime(const struct tm& t)
@@ -88,6 +89,13 @@ void setup()
         while (true) delay(1000);   // 配置错误时停机等待
     }
 
+    // 统计窗口样本数 = 天数 × (24×60 ÷ 检测间隔分钟)
+    uint32_t samples = (uint32_t)g_cfg.statsDays * 24UL * 60UL /
+                       (g_cfg.checkIntervalMinutes ? g_cfg.checkIntervalMinutes : 15);
+    if (samples == 0) samples = 1;
+    if (samples > AVAIL_MAX_SAMPLES) samples = AVAIL_MAX_SAMPLES;
+    availabilityInit((uint16_t)samples);
+
     uiInit();
 
     if (wifiEnsure(g_cfg, 15000)) {
@@ -95,7 +103,10 @@ void setup()
         for (int i = 0; i < 50 && !timeIsValid(); i++) delay(200);
         if (weatherFetch(g_cfg, g_weather)) g_lastWeatherMs = millis();
     }
-    runChecks();
+    if (WiFi.status() == WL_CONNECTED) {
+        runChecks();
+        g_lastCheckMs = millis();
+    }
 
     struct tm t;
     localTime(t);
@@ -133,7 +144,14 @@ void loop()
         if (weatherFetch(g_cfg, g_weather)) g_lastWeatherMs = millis();
     }
 
-    if (WiFi.status() == WL_CONNECTED) runChecks();
+    // 可用性检测：按检测间隔执行（默认 15 分钟一次）
+    if (WiFi.status() == WL_CONNECTED &&
+        (g_lastCheckMs == 0 ||
+         millis() - g_lastCheckMs >=
+             (uint32_t)g_cfg.checkIntervalMinutes * 60000UL)) {
+        runChecks();
+        g_lastCheckMs = millis();
+    }
 
     // 定期整屏全刷，消除快刷残影
     bool full = (millis() - g_lastFullMs) >

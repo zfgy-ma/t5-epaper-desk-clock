@@ -23,6 +23,8 @@ struct AppConfig {
     uint8_t  sleepStartHour;         // 休眠开始（小时）
     uint8_t  sleepEndHour;           // 休眠结束（小时）
     uint16_t refreshSeconds;         // 屏幕刷新周期（秒）
+    uint16_t checkIntervalMinutes;   // 可用性检测间隔（分钟）
+    uint8_t  statsDays;              // 可用率统计窗口（天）
     uint16_t fullRefreshMinutes;     // 全刷间隔（分钟，用于消除残影）
     uint16_t weatherRefreshMinutes;  // 天气更新间隔（分钟）
     CheckTarget checks[2];           // 最多支持 2 个检测目标

@@ -16,12 +16,16 @@ struct WeatherInfo {
     uint32_t updatedMs   = 0;   // 上次更新时间（millis）
 };
 
-// 可用性滚动统计（存放在 RTC 内存，深睡眠后仍保留）
+// 可用性统计：环形样本窗口（位图），写入 NVS 后掉电不丢失
+// 容量 2048 个样本，足够覆盖"7 天 × 5 分钟一次"的较长窗口
+static const uint16_t AVAIL_MAX_SAMPLES = 2048;
+
 struct Availability {
-    uint64_t windowBits  = 0;   // 最近 64 次结果，1=成功
-    uint8_t  windowCount = 0;   // 有效结果数（最多 64）
-    uint32_t total       = 0;   // 累计检测次数
-    uint32_t ok          = 0;   // 累计成功次数
+    uint16_t count = 0;      // 已记录样本数（最多 AVAIL_MAX_SAMPLES）
+    uint16_t next  = 0;      // 环形缓冲写入位置
+    uint32_t total = 0;      // 累计检测次数
+    uint32_t ok    = 0;      // 累计成功次数
+    uint8_t  bits[AVAIL_MAX_SAMPLES / 8] = { 0 };   // 1=可用，0=不可用
 };
 
 // 连接 WiFi（带超时）；已连接时直接返回 true
@@ -39,7 +43,10 @@ bool weatherFetch(const AppConfig& cfg, WeatherInfo& out);
 // 检测单个 URL 是否可用；latencyMs 返回耗时
 bool urlCheck(const String& url, uint32_t& latencyMs);
 
-// 记录一次检测结果（滚动窗口 + 累计）
+// 初始化统计：设置统计窗口样本数，并从 NVS 恢复历史数据
+void availabilityInit(uint16_t windowSamples);
+
+// 记录一次检测结果（环形窗口 + 累计），并立即写入 NVS
 void availabilityRecord(uint8_t index, bool ok);
 
 // 读取可用率（0~100）；暂无数据返回 255

@@ -47,6 +47,8 @@ pio run -t upload
 | `sleep_start_hour` | 夜间休眠开始（小时） | `0` |
 | `sleep_end_hour` | 夜间休眠结束（小时） | `7` |
 | `refresh_seconds` | 屏幕刷新周期（秒） | `60` |
+| `check_interval_minutes` | 可用性检测间隔（分钟） | `15` |
+| `stats_days` | 可用率统计窗口（天） | `3` |
 | `full_refresh_minutes` | 全刷间隔（分钟，消除快刷残影） | `60` |
 | `weather_refresh_minutes` | 天气更新间隔（分钟） | `10` |
 | `checks` | 可用性检测目标列表（最多 2 个） | 见示例文件 |
@@ -61,9 +63,11 @@ pio run -t upload
 
 - **时间**：联网后通过 NTP 校时，之后由 ESP32 内部时钟计时
 - **天气**：使用 Open-Meteo 免费接口（无需 API Key），按经纬度查询
-- **可用性检测**：按周期对每个 `url` 发起 HTTP(S) 请求
+- **可用性检测**：按 `check_interval_minutes` 周期对每个 `url` 发起 HTTP(S) 请求
   - 能收到 HTTP 响应（含 4xx）视为"可达"；无响应或 5xx 视为异常
-  - 屏幕显示最近 64 次检测的成功率（滚动窗口，断电后重新统计）
+  - 屏幕显示 `stats_days` 天窗口内的成功率（默认最近 3 天、
+    15 分钟一次 = 288 个样本）
+  - 统计数据写入 NVS 闪存，**掉电、重启后仍然保留**
 - **刷新策略**：默认每分钟快刷一次（约 0.2 秒）；
   按 `full_refresh_minutes` 整屏全刷一次（约 4 秒）以消除残影
 - **夜间休眠**：在休眠时段内深度睡眠，到 `sleep_end_hour` 自动唤醒；
@@ -108,6 +112,11 @@ pio run -t upload
 
 修改 `config.json` 的 `sleep_start_hour` / `sleep_end_hour`，
 支持跨零点时段（例如 23 点至次日 7 点）。
+
+**断电后可用性数据会丢失吗？**
+
+不会。统计数据保存在 NVS 闪存中，掉电、重启后都会继续累计
+（仅恢复出厂设置或手动清空 NVS 才会重置）。
 
 **面板是黑白的，为什么设计图是四灰度？**
 

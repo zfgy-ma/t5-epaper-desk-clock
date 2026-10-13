@@ -8,6 +8,8 @@
   "sleep_start_hour": 0,
   "sleep_end_hour": 7,
   "refresh_seconds": 60,
+  "check_interval_minutes": 15,
+  "stats_days": 3,
   "full_refresh_minutes": 60,
   "weather_refresh_minutes": 10,
   "checks": [

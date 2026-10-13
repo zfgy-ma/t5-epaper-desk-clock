@@ -101,7 +101,7 @@ static const char* weatherText(uint8_t code)
     if (code == 2) return "多云";
     if (code == 3) return "阴";
     if (code == 45 || code == 48) return "雾";
-    if (code >= 51 && code <= 57) return "毛毛雨";
+    if (code >= 51 && code <= 57) return "小雨";
     if (code >= 61 && code <= 67) return "雨";
     if (code >= 71 && code <= 77) return "雪";
     if (code >= 80 && code <= 82) return "阵雨";
@@ -176,20 +176,24 @@ void uiDraw(const AppConfig& cfg, const struct tm& now,
 
     // ---- 天气（图标 + 中文描述 + 温度）----
     if (weather.valid) {
-        drawWeatherIcon(weather.code, 168, 30);
+        drawWeatherIcon(weather.code, 164, 30);
 
+        // 中文天气描述
         u8g2.setFont(u8g2_font_wqy12_t_gb2312);
-        u8g2.setCursor(194, 40);
-        u8g2.print(weatherText(weather.code));
+        const char *desc = weatherText(weather.code);
+        u8g2.setCursor(192, 40);
+        u8g2.print(desc);
 
+        // 温度数字（大号），紧跟在描述之后，避免重叠
+        int16_t xTemp = 192 + u8g2.getUTF8Width(desc) + 4;
         snprintf(buf, sizeof(buf), "%d", (int)lroundf(weather.temperature));
-        u8g2.setFont(u8g2_font_helvB10_tf);
-        u8g2.setCursor(222, 40);
+        u8g2.setFont(u8g2_font_helvB14_tf);
+        u8g2.setCursor(xTemp, 40);
         u8g2.print(buf);
 
         // 手绘度数小圆圈（避免中文字体缺 ° 字形）
         int16_t tw = u8g2.getUTF8Width(buf);
-        epd.drawCircle(222 + tw + 3, 32, 2, GxEPD_BLACK);
+        epd.drawCircle(xTemp + tw + 3, 28, 2, GxEPD_BLACK);
     } else {
         u8g2.setFont(u8g2_font_wqy12_t_gb2312);
         u8g2.setCursor(194, 40);
