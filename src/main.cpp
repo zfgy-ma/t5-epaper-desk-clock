@@ -32,18 +32,19 @@ static uint32_t    g_lastWeatherMs = 0;
 static uint32_t    g_lastFullMs    = 0;
 static uint32_t    g_lastCheckMs   = 0;
 static uint8_t     g_page          = 0;      // 当前页面：0=主页 1=天气 2/3=延迟图
-static uint8_t     g_btnLast       = HIGH;   // 按键上次电平
+static bool        g_btnPressed    = false;  // 按键上次状态（按下为 true）
 static uint32_t    g_pageSinceMs   = 0;      // 切换到当前页面的时刻
 
-// 检测按键是否被按下（上升沿去抖，返回 true 表示刚按下）
+// 检测按键是否被按下（GPIO39 为 ADC 引脚：未按下约 4095，按下约 0）
+// 用模拟量阈值判断，比数字电平更可靠
 static bool buttonPressed()
 {
-    uint8_t now = (uint8_t)digitalRead(BUTTON_PIN);
-    bool pressed = (g_btnLast == HIGH && now == LOW);
-    g_btnLast = now;
+    bool nowPressed = (analogRead(BUTTON_PIN) < 2000);
+    bool pressed = (!g_btnPressed && nowPressed);
+    g_btnPressed = nowPressed;
     if (pressed) {
         delay(120);   // 简单消抖：等待电平稳定，避免一次按压触发多次翻页
-        g_btnLast = (uint8_t)digitalRead(BUTTON_PIN);
+        g_btnPressed = (analogRead(BUTTON_PIN) < 2000);
     }
     return pressed;
 }
@@ -163,9 +164,9 @@ void setup()
 
     // 按键初始化（GPIO39，按下为低电平）
     pinMode(BUTTON_PIN, INPUT);
-    g_btnLast = (uint8_t)digitalRead(BUTTON_PIN);
-    Serial.printf("[按键] GPIO39 初始电平=%d（空闲应为 1，按下为 0）\n",
-                  (int)g_btnLast);
+    g_btnPressed = (analogRead(BUTTON_PIN) < 2000);
+    Serial.printf("[按键] GPIO39 ADC=%d（未按下约 4095，按下约 0）\n",
+                  analogRead(BUTTON_PIN));
 
     if (wifiEnsure(g_cfg, 15000)) {
         timeStartSync(g_cfg);
