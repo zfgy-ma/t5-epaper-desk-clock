@@ -67,7 +67,7 @@ def temp_text(d, cx, baseline, value, font):
 
 # ---- 页面 1：天气预报（昨天 / 今天 / 明天 / 后天）----
 img, d = new_page()
-labels = ["昨天", "今天", "明天", "后天"]
+labels = ["昨天", "今天", "周一", "周二"]
 codes = ["rain", "sun", "cloud", "sun"]
 tmax = [26, 28, 25, 24]
 tmin = [17, 16, 18, 17]
@@ -138,8 +138,13 @@ for i, v in enumerate(samples):
     d.ellipse([px(x - 1), px(y - 1), px(x + 1), px(y + 1)], fill=BLACK)
     prev = (x, y)
 
-d.text((px(10), px(H - 14)), "min 1200  avg 2264  max 3000 ms  fail 2",
-       font=font_small, fill=BLACK)
+stats = "min1200 avg2264 max3000 fail2"
+sw = d.textlength(stats, font=font_small) / SCALE
+d.text((px(W - 10 - sw), px(8)), stats, font=font_small, fill=BLACK)
+
+d.text((px(x0), px(H - 13)), "13:15", font=font_small, fill=BLACK)
+tw = d.textlength("15:30", font=font_small) / SCALE
+d.text((px(x1 - tw), px(H - 13)), "15:30", font=font_small, fill=BLACK)
 img.save(os.path.join(out_dir, "preview-latency.png"))
 
 print("已生成: docs/preview-weather.png, docs/preview-latency.png")

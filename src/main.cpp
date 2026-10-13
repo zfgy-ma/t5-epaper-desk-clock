@@ -22,6 +22,9 @@
 // 用户按键：GPIO39（按下为低电平），用于切换页面
 #define BUTTON_PIN (39)
 
+// 非主页停留超过该时间后自动返回主页（默认 2 分钟）
+#define PAGE_RETURN_MS (120000UL)
+
 static AppConfig   g_cfg;
 static WeatherInfo g_weather;
 static ForecastInfo g_forecast;
@@ -30,6 +33,7 @@ static uint32_t    g_lastFullMs    = 0;
 static uint32_t    g_lastCheckMs   = 0;
 static uint8_t     g_page          = 0;      // 当前页面：0=主页 1=天气 2/3=延迟图
 static uint8_t     g_btnLast       = HIGH;   // 按键上次电平
+static uint32_t    g_pageSinceMs   = 0;      // 切换到当前页面的时刻
 
 // 检测按键是否被按下（上升沿去抖，返回 true 表示刚按下）
 static bool buttonPressed()
@@ -150,6 +154,8 @@ void setup()
     // 按键初始化（GPIO39，按下为低电平）
     pinMode(BUTTON_PIN, INPUT);
     g_btnLast = (uint8_t)digitalRead(BUTTON_PIN);
+    Serial.printf("[按键] GPIO39 初始电平=%d（空闲应为 1，按下为 0）\n",
+                  (int)g_btnLast);
 
     if (wifiEnsure(g_cfg, 15000)) {
         timeStartSync(g_cfg);
@@ -177,6 +183,7 @@ void setup()
 
     drawPage(true);   // 启动时全刷
     g_lastFullMs = millis();
+    g_pageSinceMs = millis();
 }
 
 void loop()
@@ -194,6 +201,14 @@ void loop()
             Serial.printf("[按键] 切换到第 %u 页\n", (unsigned)g_page);
             drawPage(true);             // 翻页用全刷，避免残影
             g_lastFullMs = millis();
+            g_pageSinceMs = millis();
+        }
+        if (g_page != 0 && millis() - g_pageSinceMs > PAGE_RETURN_MS) {
+            g_page = 0;
+            Serial.println("[页面] 停留超时，自动返回主页");
+            drawPage(true);
+            g_lastFullMs = millis();
+            g_pageSinceMs = millis();
         }
         delay(50);
     }

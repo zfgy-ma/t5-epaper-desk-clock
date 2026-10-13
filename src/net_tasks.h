@@ -21,6 +21,7 @@ struct DailyForecast {
     uint8_t code = 0;    // WMO 天气码
     float   tMax = 0.0f; // 最高温度
     float   tMin = 0.0f; // 最低温度
+    int8_t  wday = -1;   // 星期（0=周日 … 6=周六，-1=未知）
 };
 
 struct ForecastInfo {

@@ -147,6 +147,7 @@ bool weatherFetch(const AppConfig& cfg, WeatherInfo& out, ForecastInfo& fc)
     filter["daily"]["weather_code"]          = true;
     filter["daily"]["temperature_2m_max"]    = true;
     filter["daily"]["temperature_2m_min"]    = true;
+    filter["daily"]["time"]                  = true;
 
     JsonDocument doc;
     DeserializationError err =
@@ -171,6 +172,7 @@ bool weatherFetch(const AppConfig& cfg, WeatherInfo& out, ForecastInfo& fc)
     JsonArray codes = doc["daily"]["weather_code"].as<JsonArray>();
     JsonArray tmax  = doc["daily"]["temperature_2m_max"].as<JsonArray>();
     JsonArray tmin  = doc["daily"]["temperature_2m_min"].as<JsonArray>();
+    JsonArray times = doc["daily"]["time"].as<JsonArray>();
 
     fc.valid = false;
     uint8_t n = (uint8_t)codes.size();
@@ -179,6 +181,19 @@ bool weatherFetch(const AppConfig& cfg, WeatherInfo& out, ForecastInfo& fc)
         fc.days[i].code = codes[i] | 0;
         fc.days[i].tMax = tmax[i] | 0.0f;
         fc.days[i].tMin = tmin[i] | 0.0f;
+
+        // 由日期字符串（YYYY-MM-DD）计算星期，供天气页显示"周X"
+        const char *dateStr = times[i] | "";
+        if (strlen(dateStr) >= 10) {
+            struct tm tmv = {};
+            tmv.tm_year = atoi(dateStr) - 1900;
+            tmv.tm_mon  = atoi(dateStr + 5) - 1;
+            tmv.tm_mday = atoi(dateStr + 8);
+            tmv.tm_hour = 12;   // 用中午避免时区边界问题
+            if (mktime(&tmv) > 0) {
+                fc.days[i].wday = (int8_t)tmv.tm_wday;
+            }
+        }
     }
     fc.valid = (n == 4);
 

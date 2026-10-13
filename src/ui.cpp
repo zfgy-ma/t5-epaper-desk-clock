@@ -275,8 +275,17 @@ void uiDrawForecast(const AppConfig& cfg, const ForecastInfo& fc,
     epd.drawRect(0, 0, SCREEN_W, SCREEN_H, GxEPD_BLACK);
     epd.drawRect(1, 1, SCREEN_W - 2, SCREEN_H - 2, GxEPD_BLACK);
 
-    // 四列：昨天 / 今天 / 明天 / 后天（竖线分割）
-    static const char *labels[4] = { "昨天", "今天", "明天", "后天" };
+    // 四列：昨天 / 今天 / 周X / 周X（后两列按日期计算星期）
+    static const char *weekCn[] = { "日", "一", "二", "三", "四", "五", "六" };
+    char labelBuf[2][8];
+    const char *labels[4] = { "昨天", "今天", "明天", "后天" };
+    for (int i = 2; i < 4; i++) {
+        if (fc.valid && fc.days[i].wday >= 0 && fc.days[i].wday <= 6) {
+            snprintf(labelBuf[i - 2], sizeof(labelBuf[i - 2]), "周%s",
+                     weekCn[fc.days[i].wday]);
+            labels[i] = labelBuf[i - 2];
+        }
+    }
     const int16_t colW = (SCREEN_W - 4) / 4;
 
     for (int i = 1; i < 4; i++) {
@@ -386,18 +395,40 @@ void uiDrawLatency(const AppConfig& cfg, uint8_t index,
         }
     }
 
-    // 底部统计（纯 ASCII，使用小号字体）
+    // 右上角统计（min / avg / max / fail）
     char stats[56];
     if (vcnt > 0) {
-        snprintf(stats, sizeof(stats), "min %u  avg %u  max %u ms  fail %u",
+        snprintf(stats, sizeof(stats), "min%u avg%u max%u fail%u",
                  (unsigned)vmin, (unsigned)(vsum / vcnt), (unsigned)vmax,
                  (unsigned)fails);
     } else {
-        snprintf(stats, sizeof(stats), "no latency data yet");
+        snprintf(stats, sizeof(stats), "no data");
     }
     u8g2.setFont(u8g2_font_helvB08_tf);
-    u8g2.setCursor(10, SCREEN_H - 8);
+    int16_t wStats = u8g2.getUTF8Width(stats);
+    u8g2.setCursor(SCREEN_W - 10 - wStats, 18);
     u8g2.print(stats);
+
+    // 底端时间轴标注：左端与右端对应的时刻
+    if (count > 0) {
+        time_t nowT = time(nullptr);
+        struct tm tmNow;
+        localtime_r(&nowT, &tmNow);
+        time_t startT = nowT - (time_t)((uint32_t)cfg.checkIntervalMinutes *
+                                        (count - 1) * 60);
+        struct tm tmStart;
+        localtime_r(&startT, &tmStart);
+
+        char tL[8], tR[8];
+        snprintf(tL, sizeof(tL), "%02d:%02d", tmStart.tm_hour, tmStart.tm_min);
+        snprintf(tR, sizeof(tR), "%02d:%02d", tmNow.tm_hour, tmNow.tm_min);
+
+        u8g2.setCursor(x0, SCREEN_H - 6);
+        u8g2.print(tL);
+        int16_t wR = u8g2.getUTF8Width(tR);
+        u8g2.setCursor(x1 - wR, SCREEN_H - 6);
+        u8g2.print(tR);
+    }
 
     epd.display(!fullRefresh);
 }
