@@ -43,9 +43,11 @@ static void sleepUntilMorning()
     struct tm t;
     localtime_r(&now, &t);
 
-    uint32_t sec = (uint32_t)g_cfg.sleepEndHour * 3600
-                 - (uint32_t)(t.tm_hour * 3600 + t.tm_min * 60 + t.tm_sec);
-    if (sec == 0 || sec > 24 * 3600) sec = 60;   // 异常保护：一分钟后再试
+    // 计算距离休眠结束时刻的秒数（支持跨零点时段，如 23 点至 7 点）
+    int32_t sec = (int32_t)g_cfg.sleepEndHour * 3600
+                - (t.tm_hour * 3600 + t.tm_min * 60 + t.tm_sec);
+    if (sec <= 0) sec += 24 * 3600;
+    if (sec <= 0 || sec > 24 * 3600) sec = 60;   // 异常保护：一分钟后再试
 
     Serial.printf("[休眠] 深度睡眠约 %.1f 小时后唤醒\n", sec / 3600.0);
     esp_sleep_enable_timer_wakeup((uint64_t)sec * 1000000ULL);
