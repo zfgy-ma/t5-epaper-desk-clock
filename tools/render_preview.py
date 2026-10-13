@@ -3,9 +3,11 @@
 
 用法：python tools/render_preview.py
 输出：docs/preview.png（250×122 的 3 倍渲染，共 750×366）
+     也可用 python tools/render_preview.py <输出路径> 指定其他位置
 仅用于文档展示，使用通用示例域名，不含任何真实业务信息。
 """
 import os
+import sys
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -46,17 +48,27 @@ def draw_sun(cx, cy, r):
         d.line([px(x1), px(y1), px(x2), px(y2)], fill=BLACK, width=SCALE)
 
 
-def draw_bar(x, y, w, h, percent):
-    d.rounded_rectangle([px(x), px(y), px(x + w), px(y + h)],
-                        radius=px(h // 2), outline=BLACK, width=SCALE)
-    if percent >= 100:
-        d.rounded_rectangle(
-            [px(x + 2), px(y + 2), px(x + w - 2), px(y + h - 2)],
-            radius=px((h - 4) // 2), fill=BLACK)
-    elif percent > 0:
-        fill_w = int((w - 6) * percent / 100)
-        d.rectangle([px(x + 3), px(y + 3), px(x + 3 + fill_w), px(y + h - 3)],
-                    fill=BLACK)
+def draw_timeline(samples, x, y, w, h):
+    """可用性时间轴：True=黑色（通），False=留白（不通）"""
+    n = len(samples)
+    prev = x
+    for i, ok in enumerate(samples):
+        nxt = x + int((i + 1) * w / n)
+        if ok:
+            seg = max(1, nxt - prev)
+            d.rectangle([px(prev), px(y), px(prev + seg) - 1, px(y + h) - 1],
+                        fill=BLACK)
+        prev = nxt
+
+
+def build_timeline(outages):
+    """生成 3 天 × 17 小时 × 4 次 = 204 个点；outages 为不通的区间"""
+    total = 204
+    samples = [True] * total
+    for start, length in outages:
+        for k in range(start, min(start + length, total)):
+            samples[k] = False
+    return samples
 
 
 # 外框
@@ -81,18 +93,24 @@ d.ellipse([px(218 + temp_w + 3), px(29), px(218 + temp_w + 5), px(31)],
 for x in range(10, W - 12, 3):
     d.rectangle([px(x), px(70), px(x + 1), px(70)], fill=BLACK)
 
-# 两列可用性（config.json 的 name 备注，支持中文）
-columns = [("示例站点一", 98), ("示例站点二", 98)]
-for i, (name, percent) in enumerate(columns):
-    x0 = 10 + i * 122
-    d.text((px(x0), px(76)), name, font=font_cjk, fill=BLACK)
-    draw_bar(x0, 94, 82, 16, percent)
+# 两行可用性时间轴（3 天、每 15 分钟一个点；黑=通、白=不通）
+columns = [
+    ("示例站点一", 98, [(57, 2), (131, 3)]),           # (不通起始点, 点数)
+    ("示例站点二", 96, [(88, 2), (160, 5), (190, 1)]),
+]
+for i, (name, percent, outages) in enumerate(columns):
+    y0 = 72 + i * 24
+    d.text((px(10), px(y0)), name, font=font_cjk, fill=BLACK)
     text = f"{percent}%"
     tw = d.textlength(text, font=font_num) / SCALE
-    d.text((px(x0 + 116 - tw), px(98)), text, font=font_num, fill=BLACK)
+    d.text((px(W - 12 - tw), px(y0 + 4)), text, font=font_num, fill=BLACK)
+    draw_timeline(build_timeline(outages), 10, y0 + 16, W - 20, 7)
 
-out_dir = os.path.join(os.path.dirname(__file__), "..", "docs")
-os.makedirs(out_dir, exist_ok=True)
-out_path = os.path.join(out_dir, "preview.png")
+if len(sys.argv) > 1:
+    out_path = sys.argv[1]
+else:
+    out_dir = os.path.join(os.path.dirname(__file__), "..", "docs")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "preview.png")
 img.save(out_path)
 print("已生成预览图:", os.path.abspath(out_path))

@@ -9,7 +9,20 @@
 // 可用性统计：保存在 NVS 闪存，掉电、重启都不丢失
 static const char *NVS_NAMESPACE = "clock";
 static Availability g_availability[2];
-static uint16_t g_windowSamples = 288;   // 默认窗口：3 天 × 96 次/天
+static uint16_t g_windowSlots   = 288;   // 默认窗口：3 天 × 96 槽/天
+static uint16_t g_slotSeconds   = 900;   // 默认每槽 15 分钟
+static uint8_t  g_sleepStartHour = 0;    // 夜间休眠开始（小时）
+static uint8_t  g_sleepEndHour   = 7;    // 夜间休眠结束（小时）
+
+// 判断某个小时是否处于夜间休眠时段（支持跨零点，如 23 点至 7 点）
+static bool hourInSleep(uint8_t hour)
+{
+    if (g_sleepStartHour == g_sleepEndHour) return false;   // 未配置休眠
+    if (g_sleepStartHour < g_sleepEndHour) {
+        return hour >= g_sleepStartHour && hour < g_sleepEndHour;
+    }
+    return hour >= g_sleepStartHour || hour < g_sleepEndHour;
+}
 
 // 延迟历史：环形缓冲（NVS 持久化），0xFFFF 表示检测失败
 struct LatencyHistory {
@@ -30,12 +43,18 @@ static void availabilitySave(uint8_t index)
     prefs.end();
 }
 
-void availabilityInit(uint16_t windowSamples)
+void availabilityInit(uint16_t windowSlots, uint16_t slotSeconds,
+                      uint8_t sleepStartHour, uint8_t sleepEndHour)
 {
-    if (windowSamples == 0 || windowSamples > AVAIL_MAX_SAMPLES) {
-        windowSamples = AVAIL_MAX_SAMPLES;
+    if (windowSlots == 0 || windowSlots > AVAIL_MAX_SLOTS) {
+        windowSlots = AVAIL_MAX_SLOTS;
     }
-    g_windowSamples = windowSamples;
+    if (slotSeconds == 0) slotSeconds = 900;
+
+    g_windowSlots    = windowSlots;
+    g_slotSeconds    = slotSeconds;
+    g_sleepStartHour = sleepStartHour;
+    g_sleepEndHour   = sleepEndHour;
 
     Preferences prefs;
     prefs.begin(NVS_NAMESPACE, false);   // 可写打开：首次运行自动创建命名空间
@@ -60,18 +79,9 @@ void availabilityInit(uint16_t windowSamples)
     }
     prefs.end();
 
-    for (uint8_t i = 0; i < 2; i++) {
-        uint8_t pct = availabilityPercent(i);
-        char pctText[8];
-        if (pct == 255) {
-            snprintf(pctText, sizeof(pctText), "--");
-        } else {
-            snprintf(pctText, sizeof(pctText), "%u%%", (unsigned)pct);
-        }
-        Serial.printf("[统计] 站点 %u 已恢复：样本 %u 个，窗口 %u，可用率 %s\n",
-                      (unsigned)i, g_availability[i].count, g_windowSamples,
-                      pctText);
-    }
+    Serial.printf("[统计] 时间轴窗口 %u 槽 × %u 秒/槽，夜间 %u 点至 %u 点不采样\n",
+                  (unsigned)g_windowSlots, (unsigned)g_slotSeconds,
+                  (unsigned)g_sleepStartHour, (unsigned)g_sleepEndHour);
 }
 
 bool wifiEnsure(const AppConfig& cfg, uint32_t timeoutMs)
@@ -325,43 +335,95 @@ bool urlCheck(const String& url, uint32_t& latencyMs)
     return ok;
 }
 
+// 把窗口推进到当前槽：过期槽整体移出并清零
+static void availSlideWindow(Availability& a, int32_t curSlot)
+{
+    int32_t target = curSlot - (int32_t)g_windowSlots + 1;
+    if (target <= a.baseSlot) return;   // 窗口尚未过期
+
+    int32_t shift = target - a.baseSlot;
+    if (shift >= (int32_t)g_windowSlots) {
+        memset(a.slots, 0, g_windowSlots);   // 长时间未采样，整个窗口作废
+    } else {
+        memmove(a.slots, a.slots + shift, g_windowSlots - shift);
+        memset(a.slots + g_windowSlots - shift, 0, shift);
+    }
+    a.baseSlot = target;
+}
+
 void availabilityRecord(uint8_t index, bool ok)
 {
     if (index >= 2) return;
+    if (!timeIsValid()) return;   // 未校时不写槽，避免污染时间轴
 
+    time_t now = time(nullptr);
+    struct tm lt;
+    localtime_r(&now, &lt);
+    if (hourInSleep((uint8_t)lt.tm_hour)) return;   // 夜间时段不采样
+
+    int32_t curSlot = (int32_t)(now / g_slotSeconds);
     Availability& a = g_availability[index];
+    availSlideWindow(a, curSlot);
 
-    // 环形写入一个位样本：1=可用，0=不可用
-    uint16_t pos = a.next;
-    if (ok) {
-        a.bits[pos / 8] |= (uint8_t)(1 << (pos % 8));
-    } else {
-        a.bits[pos / 8] &= (uint8_t)~(1 << (pos % 8));
-    }
-    a.next = (uint16_t)((pos + 1) % AVAIL_MAX_SAMPLES);
-    if (a.count < AVAIL_MAX_SAMPLES) a.count++;
+    int32_t pos = curSlot - a.baseSlot;
+    if (pos < 0 || pos >= (int32_t)g_windowSlots) return;   // 防御：窗口异常
 
-    a.total++;
-    if (ok) a.ok++;
-
+    a.slots[pos] = ok ? AVAIL_SLOT_OK : AVAIL_SLOT_FAIL;
     availabilitySave(index);   // 立即持久化，掉电不丢
 }
 
 uint8_t availabilityPercent(uint8_t index)
 {
-    if (index >= 2) return 255;
+    if (index >= 2 || !timeIsValid()) return 255;
 
     const Availability& a = g_availability[index];
-    uint16_t n = a.count < g_windowSamples ? a.count : g_windowSamples;
-    if (n == 0) return 255;   // 暂无数据
+    int32_t curSlot = availabilitySlotNow();
+    int32_t from    = curSlot - (int32_t)g_windowSlots + 1;
 
-    // 统计最近 n 个样本（环形缓冲，最新样本在 next-1 位置）
-    uint16_t good = 0;
-    for (uint16_t i = 0; i < n; i++) {
-        uint16_t pos = (uint16_t)((a.next + AVAIL_MAX_SAMPLES - 1 - i) % AVAIL_MAX_SAMPLES);
-        if (a.bits[pos / 8] & (1 << (pos % 8))) good++;
+    uint16_t good = 0, total = 0;
+    for (int32_t s = from; s <= curSlot; s++) {
+        int32_t pos = s - a.baseSlot;
+        if (pos < 0 || pos >= (int32_t)g_windowSlots) continue;
+        uint8_t v = a.slots[pos];
+        if (v == AVAIL_SLOT_OK) { good++; total++; }
+        else if (v == AVAIL_SLOT_FAIL) { total++; }
     }
-    return (uint8_t)((uint32_t)good * 100 / n);
+    if (total == 0) return 255;   // 暂无数据
+    return (uint8_t)((uint32_t)good * 100 / total);
+}
+
+int32_t availabilitySlotNow()
+{
+    return (int32_t)(time(nullptr) / g_slotSeconds);
+}
+
+uint8_t availabilitySlotAt(uint8_t index, int32_t slot)
+{
+    if (index >= 2) return AVAIL_SLOT_NONE;
+
+    const Availability& a = g_availability[index];
+    int32_t pos = slot - a.baseSlot;
+    if (pos < 0 || pos >= (int32_t)g_windowSlots) return AVAIL_SLOT_NONE;
+    return a.slots[pos];
+}
+
+uint16_t availabilityTimeline(uint8_t index, uint8_t *out, uint16_t maxLen)
+{
+    if (index >= 2 || out == nullptr || !timeIsValid()) return 0;
+
+    int32_t curSlot = availabilitySlotNow();
+    int32_t from    = curSlot - (int32_t)g_windowSlots + 1;
+
+    uint16_t n = 0;
+    for (int32_t s = from; s <= curSlot && n < maxLen; s++) {
+        // 夜间时段不占时间轴位置，直接跳过
+        time_t t = (time_t)s * g_slotSeconds;
+        struct tm lt;
+        localtime_r(&t, &lt);
+        if (hourInSleep((uint8_t)lt.tm_hour)) continue;
+        out[n++] = availabilitySlotAt(index, s);
+    }
+    return n;
 }
 
 void latencyRecord(uint8_t index, bool ok, uint32_t latencyMs)

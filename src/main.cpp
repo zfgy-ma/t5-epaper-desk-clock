@@ -153,12 +153,13 @@ void setup()
         while (true) delay(1000);   // 配置错误时停机等待
     }
 
-    // 统计窗口样本数 = 天数 × (24×60 ÷ 检测间隔分钟)
-    uint32_t samples = (uint32_t)g_cfg.statsDays * 24UL * 60UL /
-                       (g_cfg.checkIntervalMinutes ? g_cfg.checkIntervalMinutes : 15);
-    if (samples == 0) samples = 1;
-    if (samples > AVAIL_MAX_SAMPLES) samples = AVAIL_MAX_SAMPLES;
-    availabilityInit((uint16_t)samples);
+    // 统计窗口槽数 = 天数 × (24×60 ÷ 检测间隔分钟)
+    uint16_t intervalMin = g_cfg.checkIntervalMinutes ? g_cfg.checkIntervalMinutes : 15;
+    uint32_t slots = (uint32_t)g_cfg.statsDays * 24UL * 60UL / intervalMin;
+    if (slots == 0) slots = 1;
+    if (slots > AVAIL_MAX_SLOTS) slots = AVAIL_MAX_SLOTS;
+    availabilityInit((uint16_t)slots, (uint16_t)(intervalMin * 60),
+                     g_cfg.sleepStartHour, g_cfg.sleepEndHour);
 
     uiInit();
 

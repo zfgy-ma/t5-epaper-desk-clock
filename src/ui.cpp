@@ -110,21 +110,22 @@ static const char* weatherText(uint8_t code)
     return "未知";
 }
 
-// 胶囊进度条：外框线条 + 黑色填充（白色为空）
-static void drawCapsuleBar(int16_t x, int16_t y, int16_t w, int16_t h,
-                           uint8_t percent)
+// 可用性时间轴：按时间顺序从左到右绘制，黑色=检测通过、留白=不通
+// n 个槽会等比映射到 w 像素宽（每槽至少占 1 像素）
+static void drawAvailabilityTimeline(const uint8_t *slots, uint16_t n,
+                                     int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    epd.drawRoundRect(x, y, w, h, h / 2, GxEPD_BLACK);
-    if (percent == 255) return;                 // 暂无数据：只画外框
+    if (n == 0) return;
 
-    if (percent >= 100) {                       // 满格：整条填充
-        epd.fillRoundRect(x + 2, y + 2, w - 4, h - 4, (h - 4) / 2, GxEPD_BLACK);
-        return;
-    }
-
-    int16_t fillW = (int16_t)((int32_t)(w - 6) * percent / 100);
-    if (fillW > 0) {
-        epd.fillRect(x + 3, y + 3, fillW, h - 6, GxEPD_BLACK);
+    int16_t prevX = x;
+    for (uint16_t i = 0; i < n; i++) {
+        int16_t nextX = x + (int16_t)((int32_t)(i + 1) * w / n);
+        if (slots[i] == AVAIL_SLOT_OK) {
+            int16_t segW = nextX - prevX;
+            if (segW < 1) segW = 1;   // 槽数多于像素时保证可见
+            epd.fillRect(prevX, y, segW, h, GxEPD_BLACK);
+        }
+        prevX = nextX;
     }
 }
 
@@ -227,19 +228,17 @@ void uiDraw(const AppConfig& cfg, const struct tm& now,
     // ---- 分隔线 ----
     drawDottedDivider(70);
 
-    // ---- 两列可用性信息 ----
+    // ---- 两行可用性时间轴（最近 N 天，每检测间隔一个点）----
+    static uint8_t timeline[AVAIL_MAX_SLOTS];
     for (uint8_t i = 0; i < 2; i++) {
-        int16_t x0 = 10 + i * 122;
+        int16_t y0 = 72 + i * 24;   // 每站占 24 像素：标题行 + 时间轴行
 
         // 站点备注（支持中文，来自 config.json 的 name 字段）
         u8g2.setFont(u8g2_font_wqy12_t_gb2312);
-        u8g2.setCursor(x0, 88);
+        u8g2.setCursor(10, y0 + 12);
         u8g2.print(i < cfg.checkCount ? cfg.checks[i].name.c_str() : "");
 
-        // 胶囊进度条
-        drawCapsuleBar(x0, 94, 82, 16, percent[i]);
-
-        // 百分比（右对齐）
+        // 窗口可用率（右对齐，作为时间轴的汇总数字）
         if (percent[i] == 255) {
             snprintf(buf, sizeof(buf), "--%%");   // 无数据时显示 --%
         } else {
@@ -247,8 +246,12 @@ void uiDraw(const AppConfig& cfg, const struct tm& now,
         }
         u8g2.setFont(u8g2_font_helvB10_tf);
         int16_t tw = u8g2.getUTF8Width(buf);
-        u8g2.setCursor(x0 + 116 - tw, 106);
+        u8g2.setCursor(SCREEN_W - 12 - tw, y0 + 12);
         u8g2.print(buf);
+
+        // 时间轴：黑=通、白=不通，夜间时段自动跳过
+        uint16_t n = availabilityTimeline(i, timeline, AVAIL_MAX_SLOTS);
+        drawAvailabilityTimeline(timeline, n, 10, y0 + 16, SCREEN_W - 20, 7);
     }
 
     epd.display(!fullRefresh);   // fullRefresh=false 时走快刷（约 0.2 秒）

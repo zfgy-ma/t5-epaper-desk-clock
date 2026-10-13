@@ -1,7 +1,7 @@
 /*
  * 界面绘制：270° 横屏布局（250 × 122）
  * 顶部：时间 + 日期 + 天气图标与文字
- * 底部：两列网站可用性（名称 + 胶囊进度条 + 百分比）
+ * 底部：两行网站可用性时间轴（名称 + 百分比 + 黑白时间轴）
  */
 #pragma once
 
@@ -14,7 +14,8 @@
 void uiInit();
 
 // 绘制整屏并刷新
-//   percent[2]：可用率 0~100，255 表示暂无数据
+//   percent[2]：窗口可用率 0~100，255 表示暂无数据（显示在标题行右侧）
+//   时间轴数据由 availabilityTimeline() 提供（最近 N 天、每槽一个点）
 //   fullRefresh：true 整屏全刷（约 4 秒）；false 快刷（约 0.2 秒）
 //   night：true 时时间位置显示"夜间休眠中"（用于睡前画面）
 void uiDraw(const AppConfig& cfg, const struct tm& now,
