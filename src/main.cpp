@@ -130,6 +130,16 @@ static void drawPage(bool full)
     uiDraw(g_cfg, t, g_weather, pct, full);
 }
 
+// 切换到下一页（按键 / 串口调试共用）
+static void advancePage()
+{
+    g_page = (uint8_t)((g_page + 1) % 4);
+    Serial.printf("[页面] 切换到第 %u 页\n", (unsigned)g_page);
+    drawPage(true);             // 翻页用全刷，避免残影
+    g_lastFullMs = millis();
+    g_pageSinceMs = millis();
+}
+
 void setup()
 {
     Serial.begin(115200);
@@ -197,11 +207,17 @@ void loop()
     uint32_t target = wait * 1000UL;
     for (uint32_t waited = 0; waited < target; waited += 50) {
         if (buttonPressed()) {
-            g_page = (uint8_t)((g_page + 1) % 4);
-            Serial.printf("[按键] 切换到第 %u 页\n", (unsigned)g_page);
-            drawPage(true);             // 翻页用全刷，避免残影
-            g_lastFullMs = millis();
-            g_pageSinceMs = millis();
+            Serial.println("[按键] 检测到按下");
+            advancePage();
+        }
+
+        // 调试用：串口发送 n 也可切换页面（便于无按键时验证）
+        if (Serial.available() > 0) {
+            int ch = Serial.read();
+            if (ch == 'n' || ch == 'N') {
+                Serial.println("[调试] 收到串口切页指令");
+                advancePage();
+            }
         }
         if (g_page != 0 && millis() - g_pageSinceMs > PAGE_RETURN_MS) {
             g_page = 0;
