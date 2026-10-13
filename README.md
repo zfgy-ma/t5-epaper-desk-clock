@@ -7,7 +7,9 @@
 - 下方两列显示网站1 与网站2的**可用性**（胶囊进度条 + 百分比）
 - 默认每分钟刷新一次屏幕；夜间（默认 0:00–7:00）自动深度睡眠
 
-![界面预览](docs/preview.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/zfgy-ma/Image_Gallery/main/t5-epaper-desk-clock-image/preview-home.png" alt="主页界面预览" width="300">
+</p>
 
 > 预览图由 `tools/render_preview.py` 按固件布局生成（示例域名为占位数据）。
 
@@ -15,7 +17,18 @@
 
 | 天气预报页（昨天 + 3 天） | 延迟折线页（按站点分页） |
 | --- | --- |
-| ![天气预报页](docs/preview-weather.png) | ![延迟折线页](docs/preview-latency.png) |
+| <img src="https://raw.githubusercontent.com/zfgy-ma/Image_Gallery/main/t5-epaper-desk-clock-image/preview-weather.png" alt="天气预报页" width="300"> | <img src="https://raw.githubusercontent.com/zfgy-ma/Image_Gallery/main/t5-epaper-desk-clock-image/preview-latency.png" alt="延迟折线页" width="300"> |
+
+## 实物照片
+
+以下照片记录了设备实际运行时的显示效果（墨水屏在自然光下拍摄，受环境光影响略有偏色）：
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/zfgy-ma/Image_Gallery/main/t5-epaper-desk-clock-image/peoduct-home.png" alt="实物照片：主页" width="320">
+  <img src="https://raw.githubusercontent.com/zfgy-ma/Image_Gallery/main/t5-epaper-desk-clock-image/product-weather.png" alt="实物照片：天气预报页" width="320">
+  <img src="https://raw.githubusercontent.com/zfgy-ma/Image_Gallery/main/t5-epaper-desk-clock-image/product-latency-1.png" alt="实物照片：站点1延迟页" width="320">
+  <img src="https://raw.githubusercontent.com/zfgy-ma/Image_Gallery/main/t5-epaper-desk-clock-image/product-latency-2.png" alt="实物照片：站点2延迟页" width="320">
+</p>
 
 ## 硬件
 
