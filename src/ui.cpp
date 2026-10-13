@@ -380,6 +380,7 @@ void uiDrawLatency(const AppConfig& cfg, uint8_t index,
             int16_t y = yBot - (int16_t)((int32_t)samples[i] * (yBot - yTop) / yMax);
             if (y < yTop) y = yTop;
             if (prevX >= 0) epd.drawLine(prevX, prevY, x, y, GxEPD_BLACK);
+            epd.drawPixel(x, y, GxEPD_BLACK);   // 每个样本点
             prevX = x;
             prevY = y;
         }

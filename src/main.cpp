@@ -37,6 +37,10 @@ static bool buttonPressed()
     uint8_t now = (uint8_t)digitalRead(BUTTON_PIN);
     bool pressed = (g_btnLast == HIGH && now == LOW);
     g_btnLast = now;
+    if (pressed) {
+        delay(120);   // 简单消抖：等待电平稳定，避免一次按压触发多次翻页
+        g_btnLast = (uint8_t)digitalRead(BUTTON_PIN);
+    }
     return pressed;
 }
 
