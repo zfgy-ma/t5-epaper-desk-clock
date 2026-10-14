@@ -39,6 +39,7 @@
 | 屏幕 | 2.13 英寸墨水屏，122×250，SSD1675B / SSD1680 兼容 |
 | 接线 | 墨水屏：CS=5, DC=17, RST=16, BUSY=4（可在 `src/ui.cpp` 修改） |
 | 数据线 | Micro USB；串口默认 COM3（可在 `platformio.ini` 修改） |
+| 背板 | 配套 T5-2.13 装饰背板（圆角设计，含 EDA 工程与 Gerber 打板文件），见 [`hardware/`](hardware/README.md) |
 
 ## 快速开始
 
