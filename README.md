@@ -31,6 +31,19 @@
   <img src="https://raw.githubusercontent.com/zfgy-ma/Image_Gallery/main/t5-epaper-desk-clock-image/product-latency-2.png" alt="实物照片：站点2延迟页" width="320">
 </p>
 
+## 背板设计
+
+配套的 T5-2.13 装饰背板：圆角设计，板面丝印花徽图案、"T5-2.13" 字样与
+波浪装饰带，采用 PCB 工艺制作，用于遮挡主板背面元件、美化桌面摆放外观。
+四角 Ø2.0mm 安装孔与原板孔位一致，使用 M2 螺丝固定。
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/zfgy-ma/Image_Gallery/main/t5-epaper-desk-clock-image/backpanel-3d-preview.png" alt="背板 3D 预览（渲染配色仅供参考）" width="300">
+  <img src="https://raw.githubusercontent.com/zfgy-ma/Image_Gallery/main/t5-epaper-desk-clock-image/backpanel-layout.png" alt="背板 EDA 布局图" width="280">
+</p>
+
+立创EDA 工程源文件与 Gerber 打板文件见 [`hardware/`](hardware/README.md)。
+
 ## 硬件
 
 | 项目 | 说明 |
