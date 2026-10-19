@@ -13,7 +13,8 @@
   <img src="https://raw.githubusercontent.com/zfgy-ma/Image_Gallery/main/t5-epaper-desk-clock-image/preview-home.png" alt="主页界面预览" width="300">
 </p>
 
-> 预览图由 `tools/render_preview.py` 按固件布局生成（示例域名为占位数据）。
+> 预览图由 `tools/render_preview.py` 按固件布局生成（示例域名为占位数据），
+> 右上角电池图标与实机一致，按 4 格比例显示电量。
 
 按键（GPIO39）循环切换页面，另有天气预报页与延迟折线页：
 
