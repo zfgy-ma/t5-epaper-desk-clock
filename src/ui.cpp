@@ -138,15 +138,42 @@ static void drawDottedDivider(int16_t y)
     }
 }
 
+// 电池图标：左上角在 (x, y)，宽 20、高 10，右侧带正极小凸点
+// 内腔按电量分 4 格填充：约 25%/50%/75%/100% 各亮一格
+static void drawBatteryIcon(int16_t x, int16_t y, uint8_t percent)
+{
+    const int16_t w = 20, h = 10;
+    epd.drawRect(x, y, w, h, GxEPD_BLACK);
+    // 正极小凸点
+    epd.fillRect(x + w + 1, y + 3, 2, 4, GxEPD_BLACK);
+
+    if (percent > 100) percent = 100;
+    // 四格分别代表 25% 区间：1~25% 亮 1 格，26~50% 亮 2 格……
+    uint8_t bars = (uint8_t)((percent + 24) / 25);
+    if (bars > 4) bars = 4;
+
+    // 内腔宽 18 像素：4 格 × 3 像素 + 3 个 1 像素间隔 = 15，左右各留约 1.5 像素
+    const int16_t barW = 3, gap = 1;
+    for (uint8_t i = 0; i < bars; i++) {
+        int16_t bx = x + 2 + i * (barW + gap);
+        epd.fillRect(bx, y + 3, barW, h - 5, GxEPD_BLACK);
+    }
+}
+
 void uiDraw(const AppConfig& cfg, const struct tm& now,
             const WeatherInfo& weather, const uint8_t percent[2],
-            bool fullRefresh, bool night)
+            bool fullRefresh, bool night, uint8_t battery)
 {
     epd.fillScreen(GxEPD_WHITE);
 
     // 外框
     epd.drawRect(0, 0, SCREEN_W, SCREEN_H, GxEPD_BLACK);
     epd.drawRect(1, 1, SCREEN_W - 2, SCREEN_H - 2, GxEPD_BLACK);
+
+    // ---- 右上角电池图标（不显示具体数值）----
+    if (battery <= 100) {
+        drawBatteryIcon(SCREEN_W - 34, 5, battery);
+    }
 
     char buf[40];
     bool timeOk = timeIsValid();

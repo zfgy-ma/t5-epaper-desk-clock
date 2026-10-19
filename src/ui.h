@@ -18,9 +18,10 @@ void uiInit();
 //   时间轴数据由 availabilityTimeline() 提供（最近 N 天、每槽一个点）
 //   fullRefresh：true 整屏全刷（约 4 秒）；false 快刷（约 0.2 秒）
 //   night：true 时时间位置显示"夜间休眠中"（用于睡前画面）
+//   battery：电量 0~100，255 表示读数无效（不画电池图标）
 void uiDraw(const AppConfig& cfg, const struct tm& now,
             const WeatherInfo& weather, const uint8_t percent[2],
-            bool fullRefresh, bool night = false);
+            bool fullRefresh, bool night = false, uint8_t battery = 255);
 
 // 第 1 页：昨天 + 未来 3 天天气（图标 + 最高/最低温度，竖线分列）
 void uiDrawForecast(const AppConfig& cfg, const ForecastInfo& fc,

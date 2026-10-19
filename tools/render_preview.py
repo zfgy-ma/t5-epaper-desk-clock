@@ -61,6 +61,19 @@ def draw_timeline(samples, x, y, w, h):
         prev = nxt
 
 
+def draw_battery(x, y, percent):
+    """电池图标：外框 + 正极小凸点 + 4 格填充（与固件 drawBatteryIcon 一致）"""
+    w, h = 20, 10
+    d.rectangle([px(x), px(y), px(x + w) - 1, px(y + h) - 1],
+                outline=BLACK, width=SCALE)
+    d.rectangle([px(x + w + 1), px(y + 3), px(x + w + 2), px(y + 6)],
+                fill=BLACK)
+    bars = min(4, (percent + 24) // 25)
+    for i in range(bars):
+        bx = x + 2 + i * 4
+        d.rectangle([px(bx), px(y + 3), px(bx + 2), px(y + 7)], fill=BLACK)
+
+
 def build_timeline(outages):
     """生成 3 天 × 17 小时 × 4 次 = 204 个点；outages 为不通的区间"""
     total = 204
@@ -88,6 +101,9 @@ d.text((px(218), px(26)), temp, font=font_num, fill=BLACK)
 temp_w = d.textlength(temp, font=font_num) / SCALE
 d.ellipse([px(218 + temp_w + 3), px(29), px(218 + temp_w + 5), px(31)],
           outline=BLACK, width=SCALE)
+
+# 右上角电池图标（示例 86%）
+draw_battery(W - 34, 5, 86)
 
 # 点阵分隔线
 for x in range(10, W - 12, 3):

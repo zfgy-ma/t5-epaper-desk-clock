@@ -16,6 +16,7 @@
 #include <WiFi.h>
 
 #include "app_config.h"
+#include "battery.h"
 #include "net_tasks.h"
 #include "ui.h"
 
@@ -79,7 +80,7 @@ static void sleepUntilMorning()
     uint8_t pct[2] = { availabilityPercent(0), availabilityPercent(1) };
     struct tm t2;
     localtime_r(&now, &t2);
-    uiDraw(g_cfg, t2, g_weather, pct, true, true);
+    uiDraw(g_cfg, t2, g_weather, pct, true, true, batteryPercent());
 
     Serial.printf("[休眠] 深度睡眠约 %.1f 小时后唤醒\n", sec / 3600.0);
     esp_sleep_enable_timer_wakeup((uint64_t)sec * 1000000ULL);
@@ -128,7 +129,7 @@ static void drawPage(bool full)
 
     struct tm t;
     localTime(t);
-    uiDraw(g_cfg, t, g_weather, pct, full);
+    uiDraw(g_cfg, t, g_weather, pct, full, false, batteryPercent());
 }
 
 // 切换到下一页（按键 / 串口调试共用）
@@ -151,6 +152,16 @@ void setup()
     if (!loadAppConfig(g_cfg)) {
         Serial.println("[桌面时钟] config.json 无效，请检查配置");
         while (true) delay(1000);   // 配置错误时停机等待
+    }
+
+    // 电池电量：GPIO35 分压采样（不依赖 WiFi，尽早初始化）
+    batteryInit();
+    batterySample();
+    if (batteryPercent() <= 100) {
+        Serial.printf("[电量] %.2fV，约 %u%%\n",
+                      batteryMillivolts() / 1000.0f, (unsigned)batteryPercent());
+    } else {
+        Serial.println("[电量] 未检测到电池（读数为 0）");
     }
 
     // 统计窗口槽数 = 天数 × (24×60 ÷ 检测间隔分钟)
@@ -270,6 +281,9 @@ void loop()
     // 定期整屏全刷，消除快刷残影
     bool full = (millis() - g_lastFullMs) >
                 (uint32_t)g_cfg.fullRefreshMinutes * 60000UL;
+
+    // 电池电压随负载波动，每分钟刷新前重新采样一次
+    batterySample();
 
     drawPage(full);
     if (full) g_lastFullMs = millis();
